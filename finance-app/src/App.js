@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { db } from './firebase';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import * as XLSX from 'xlsx';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const SPREADSHEET_ID = '1x2FUQZgAibFeJYgxKsbGVZUGlUKoKlyp6syFSO5vBw4';
@@ -388,17 +389,16 @@ function Analytics({ transactions, budgets, setBudgets, viewMonth, setViewMonth,
   const exportExcel = async () => {
     setExportLoading(true);
     try {
-      const { utils, writeFile } = await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm');
       const rows = transactions.map(t => ({
         Дата: t.date, Тип: t.type === 'income' ? 'Доход' : 'Расход',
         Сумма: t.amount, Категория: t.cat,
         Карман: POCKETS.find(p => p.key === t.pocket)?.label || t.pocket,
         Комментарий: t.note || '',
       }));
-      const ws = utils.json_to_sheet(rows);
-      const wb = utils.book_new();
-      utils.book_append_sheet(wb, ws, 'Транзакции');
-      writeFile(wb, `MarshallFinance_${viewMonth}.xlsx`);
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Транзакции');
+      XLSX.writeFile(wb, `MarshallFinance_${viewMonth}.xlsx`);
       showToast('Файл скачан ✓');
     } catch (e) { showToast('Ошибка экспорта', 'error'); }
     setExportLoading(false);
