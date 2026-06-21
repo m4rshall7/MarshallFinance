@@ -835,11 +835,15 @@ export default function App() {
     return unsub;
   }, []);
 
-  const const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby0ecqSaaYnUN2kIa51NVeRhn72FVkCPL94bo_xmowMm-YbX8V6y8WwBLbtBNCwvnuU8g/exec';    const addTransaction = useCallback(async (tx) => {     const id = Date.now().toString();     await setDoc(doc(db, 'transactions', id), { ...tx, id, createdAt: new Date().toISOString() });     if (tx.pocket === 'business') {       fetch(APPS_SCRIPT_URL, {         method: 'POST',         body: JSON.stringify(tx),         mode: 'no-cors'       }).catch(() => {});     }   }, []);(async (tx) => {
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby0ecqSaaYnUN2kIa51NVeRhn72FVkCPL94bo_xmowMm-YbX8V6y8WwBLbtBNCwvnuU8g/exec';
+  const addTransaction = useCallback(async (tx) => {
     const id = Date.now().toString();
     await setDoc(doc(db, 'transactions', id), { ...tx, id, createdAt: new Date().toISOString() });
+    if (tx.pocket === 'business') {
+      fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(tx), mode: 'no-cors' }).catch(() => {});
+    }
   }, []);
-
+  
   const deleteTransaction = useCallback(async id => {
     await deleteDoc(doc(db, 'transactions', String(id)));
   }, []);
