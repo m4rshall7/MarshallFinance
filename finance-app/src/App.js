@@ -1,52 +1,34 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { db } from './firebase';
-import { collection, doc, setDoc, deleteDoc, onSnapshot, getDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, deleteDoc, onSnapshot, getDoc, updateDoc } from 'firebase/firestore';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import * as XLSX from 'xlsx';
 
-// ── Constants ─────────────────────────────────────────────────────────────────
 const SPREADSHEET_ID = '1x2FUQZgAibFeJYgxKsbGVZUGlUKoKlyp6syFSO5vBw4';
-
 const POCKETS = [
   { key: 'personal', label: 'Личный банк',  color: '#3b82f6', icon: '🏦' },
   { key: 'business', label: 'Бизнес счёт',  color: '#10b981', icon: '💼' },
   { key: 'cash',     label: 'Наличка',       color: '#f59e0b', icon: '💵' },
   { key: 'invest',   label: 'Инвестиции',    color: '#8b5cf6', icon: '📈' },
 ];
-
 const DEFAULT_EXPENSE_CATS = [
-  { label: 'Еда и продукты', icon: '🛒' },
-  { label: 'Кафе и рестораны', icon: '☕' },
-  { label: 'Транспорт', icon: '🚗' },
-  { label: 'Аренда', icon: '🏠' },
-  { label: 'Коммунальные', icon: '💡' },
-  { label: 'Одежда', icon: '👗' },
-  { label: 'Здоровье', icon: '💊' },
-  { label: 'Развлечения', icon: '🎬' },
-  { label: 'Семья и дети', icon: '👶' },
-  { label: 'Техника', icon: '📱' },
-  { label: 'Закупка товаров', icon: '📦' },
-  { label: 'Логистика', icon: '🚚' },
-  { label: 'Фулфилмент', icon: '🏭' },
-  { label: 'Самовыкупы', icon: '🔄' },
-  { label: 'Реклама', icon: '📣' },
-  { label: 'Подписка сервисов', icon: '💻' },
-  { label: 'Оплата труда', icon: '👥' },
-  { label: 'Прочие расходы', icon: '📦' },
+  { label: 'Еда и продукты', icon: '🛒' }, { label: 'Кафе и рестораны', icon: '☕' },
+  { label: 'Транспорт', icon: '🚗' }, { label: 'Аренда', icon: '🏠' },
+  { label: 'Коммунальные', icon: '💡' }, { label: 'Одежда', icon: '👗' },
+  { label: 'Здоровье', icon: '💊' }, { label: 'Развлечения', icon: '🎬' },
+  { label: 'Семья и дети', icon: '👶' }, { label: 'Техника', icon: '📱' },
+  { label: 'Закупка товаров', icon: '📦' }, { label: 'Логистика', icon: '🚚' },
+  { label: 'Фулфилмент', icon: '🏭' }, { label: 'Самовыкупы', icon: '🔄' },
+  { label: 'Реклама', icon: '📣' }, { label: 'Подписка сервисов', icon: '💻' },
+  { label: 'Оплата труда', icon: '👥' }, { label: 'Прочие расходы', icon: '📦' },
 ];
-
 const DEFAULT_INCOME_CATS = [
-  { label: 'Дивиденды / зарплата', icon: '💰' },
-  { label: 'Поступление от ВБ', icon: '🛍️' },
-  { label: 'Доход ПВЗ', icon: '📦' },
-  { label: 'Вклады ДС в бизнес', icon: '💳' },
-  { label: 'Возврат', icon: '↩️' },
-  { label: 'Прочий доход', icon: '➕' },
+  { label: 'Дивиденды / зарплата', icon: '💰' }, { label: 'Поступление от ВБ', icon: '🛍️' },
+  { label: 'Доход ПВЗ', icon: '📦' }, { label: 'Вклады ДС в бизнес', icon: '💳' },
+  { label: 'Возврат', icon: '↩️' }, { label: 'Прочий доход', icon: '➕' },
 ];
-
 const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n) => {
   const abs = Math.abs(Math.round(n));
   if (abs >= 1000000) return (n < 0 ? '-' : '') + (abs / 1000000).toFixed(1) + 'М ₽';
@@ -57,7 +39,6 @@ const fmtFull = (n) => Math.round(n).toLocaleString('ru-RU') + ' ₽';
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const nowMonth = () => new Date().toISOString().slice(0, 7);
 
-// ── Styles ────────────────────────────────────────────────────────────────────
 const S = {
   app: { minHeight: '100vh', paddingBottom: 80, maxWidth: 480, margin: '0 auto' },
   card: { background: '#1e293b', borderRadius: 16, padding: '16px', border: '1px solid rgba(255,255,255,0.06)', marginBottom: 12 },
@@ -76,7 +57,6 @@ const S = {
   bottomNav: { position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, background: '#1e293b', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', zIndex: 100 },
 };
 
-// ── Modal ─────────────────────────────────────────────────────────────────────
 function Modal({ open, onClose, title, children }) {
   if (!open) return null;
   return (
@@ -92,7 +72,6 @@ function Modal({ open, onClose, title, children }) {
   );
 }
 
-// ── Toast ─────────────────────────────────────────────────────────────────────
 function Toast({ msg, type }) {
   if (!msg) return null;
   const bg = type === 'error' ? '#450a0a' : type === 'warn' ? '#451a03' : '#064e3b';
@@ -104,22 +83,125 @@ function Toast({ msg, type }) {
   );
 }
 
-// ── TxRow ─────────────────────────────────────────────────────────────────────
-function TxRow({ t, onDelete, allCats }) {
+// ── TxRow — нажатие открывает модалку ──────────────────────────────────────────
+function TxRow({ t, onSelect, allCats }) {
   const pocket = POCKETS.find(p => p.key === t.pocket);
   const icon = allCats.find(c => c.label === t.cat)?.icon || '💸';
+  const isPlan = t.plan === 'plan';
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-      <div style={{ width: 40, height: 40, borderRadius: 12, background: t.type === 'income' ? '#064e3b' : '#450a0a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{icon}</div>
+    <div onClick={() => onSelect && onSelect(t)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', cursor: onSelect ? 'pointer' : 'default' }}>
+      <div style={{ width: 40, height: 40, borderRadius: 12, background: t.type === 'income' ? '#064e3b' : isPlan ? '#1a2744' : '#450a0a', border: isPlan ? '1.5px solid #3b82f6' : 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{icon}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.cat}</div>
-        <div style={{ fontSize: 12, color: '#64748b' }}>{t.date} · {pocket?.label || t.pocket}{t.note ? ' · ' + t.note : ''}{t.fromSheets ? ' 📊' : ''}</div>
+        <div style={{ fontSize: 14, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {t.cat}
+          {isPlan && <span style={{ fontSize: 10, background: '#1e3a5f', color: '#60a5fa', borderRadius: 4, padding: '1px 5px', marginLeft: 6 }}>ПЛАН</span>}
+          {t.fromSheets && <span style={{ fontSize: 10, color: '#64748b', marginLeft: 4 }}>📊</span>}
+        </div>
+        <div style={{ fontSize: 12, color: '#64748b' }}>{t.date} · {pocket?.label || t.pocket}{t.note ? ' · ' + t.note : ''}</div>
       </div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: t.type === 'income' ? '#10b981' : '#ef4444', flexShrink: 0 }}>
+      <div style={{ fontSize: 15, fontWeight: 600, color: t.type === 'income' ? '#10b981' : isPlan ? '#60a5fa' : '#ef4444', flexShrink: 0 }}>
         {t.type === 'income' ? '+' : '-'}{fmt(t.amount)}
       </div>
-      {onDelete && <button onClick={() => onDelete(t.id)} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: 20, cursor: 'pointer', flexShrink: 0 }}>×</button>}
     </div>
+  );
+}
+
+// ── TxDetailModal — детали + редактирование + удаление ────────────────────────
+function TxDetailModal({ tx, open, onClose, onDelete, onSave, expenseCats, incomeCats }) {
+  const [editing, setEditing] = useState(false);
+  const [cat, setCat]         = useState('');
+  const [date, setDate]       = useState('');
+  const [note, setNote]       = useState('');
+  const [plan, setPlan]       = useState('fact');
+
+  useEffect(() => {
+    if (tx) { setCat(tx.cat); setDate(tx.date); setNote(tx.note || ''); setPlan(tx.plan || 'fact'); setEditing(false); }
+  }, [tx]);
+
+  if (!tx) return null;
+  const cats = tx.type === 'expense' ? expenseCats : incomeCats;
+  const pocket = POCKETS.find(p => p.key === tx.pocket);
+  const isPlan = tx.plan === 'plan';
+
+  const handleSave = async () => {
+    await onSave(tx.id, { cat, date, note, plan });
+    onClose();
+  };
+
+  const handleDelete = async () => {
+    await onDelete(tx.id);
+    onClose();
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title={editing ? 'Редактировать' : 'Операция'}>
+      {!editing ? (
+        <>
+          <div style={{ ...S.card, marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ color: '#64748b', fontSize: 13 }}>Категория</span>
+              <span style={{ fontWeight: 500 }}>{tx.cat}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ color: '#64748b', fontSize: 13 }}>Сумма</span>
+              <span style={{ fontWeight: 600, fontSize: 16, color: tx.type === 'income' ? '#10b981' : isPlan ? '#60a5fa' : '#ef4444' }}>
+                {tx.type === 'income' ? '+' : '-'}{fmtFull(tx.amount)}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ color: '#64748b', fontSize: 13 }}>Дата</span>
+              <span>{tx.date}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ color: '#64748b', fontSize: 13 }}>Карман</span>
+              <span>{pocket?.label || tx.pocket}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ color: '#64748b', fontSize: 13 }}>Тип</span>
+              <span style={{ color: isPlan ? '#60a5fa' : '#10b981' }}>{isPlan ? '📋 Плановый' : '✅ Фактический'}</span>
+            </div>
+            {tx.note && (
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b', fontSize: 13 }}>Комментарий</span>
+                <span style={{ maxWidth: 200, textAlign: 'right' }}>{tx.note}</span>
+              </div>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => setEditing(true)} style={{ ...S.btn('primary'), flex: 1, textAlign: 'center' }}>✏️ Редактировать</button>
+            <button onClick={handleDelete} style={{ ...S.btn('danger'), flex: 1, textAlign: 'center' }}>🗑 Удалить</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div style={{ marginBottom: 12 }}>
+            <div style={S.label}>Категория</div>
+            <select style={S.select} value={cat} onChange={e => setCat(e.target.value)}>
+              {cats.map(c => <option key={c.label} value={c.label}>{c.icon} {c.label}</option>)}
+            </select>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={S.label}>Дата</div>
+            <input style={S.input} type="date" value={date} onChange={e => setDate(e.target.value)} />
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <div style={S.label}>Комментарий</div>
+            <input style={S.input} type="text" value={note} onChange={e => setNote(e.target.value)} />
+          </div>
+          <div style={{ marginBottom: 20 }}>
+            <div style={S.label}>План или факт</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <button onClick={() => setPlan('fact')} style={{ ...S.btn(), background: plan === 'fact' ? '#10b981' : 'rgba(255,255,255,0.06)', color: '#fff', fontWeight: plan === 'fact' ? 600 : 400 }}>✅ Факт</button>
+              <button onClick={() => setPlan('plan')} style={{ ...S.btn(), background: plan === 'plan' ? '#3b82f6' : 'rgba(255,255,255,0.06)', color: '#fff', fontWeight: plan === 'plan' ? 600 : 400 }}>📋 План</button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={() => setEditing(false)} style={{ ...S.btn('ghost'), flex: 1, textAlign: 'center' }}>Отмена</button>
+            <button onClick={handleSave} style={{ ...S.btn('primary'), flex: 1, textAlign: 'center' }}>Сохранить</button>
+          </div>
+        </>
+      )}
+    </Modal>
   );
 }
 
@@ -127,8 +209,10 @@ function TxRow({ t, onDelete, allCats }) {
 function Overview({ pockets, transactions, budgets, viewMonth, setViewMonth, allCats }) {
   const [y, m] = viewMonth.split('-').map(Number);
   const vtx = transactions.filter(t => t.date?.slice(0, 7) === viewMonth);
-  const income  = vtx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-  const expense = vtx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const factTx = vtx.filter(t => t.plan !== 'plan');
+  const income  = factTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+  const expense = factTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  const planExp = vtx.filter(t => t.plan === 'plan' && t.type === 'expense').reduce((s, t) => s + t.amount, 0);
   const balance = income - expense;
   const savings = income > 0 ? Math.round(balance / income * 100) : null;
   const total   = Object.values(pockets).reduce((s, v) => s + v, 0);
@@ -141,7 +225,7 @@ function Overview({ pockets, transactions, budgets, viewMonth, setViewMonth, all
   const chartData = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(); d.setMonth(d.getMonth() - (5 - i));
     const mo = d.toISOString().slice(0, 7);
-    const mtx = transactions.filter(t => t.date?.slice(0, 7) === mo);
+    const mtx = transactions.filter(t => t.date?.slice(0, 7) === mo && t.plan !== 'plan');
     return {
       name: MONTHS_RU[d.getMonth()].slice(0, 3),
       income:  mtx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0),
@@ -150,7 +234,7 @@ function Overview({ pockets, transactions, budgets, viewMonth, setViewMonth, all
   });
 
   const alerts = Object.entries(budgets).filter(([cat, limit]) => {
-    const spent = vtx.filter(t => t.type === 'expense' && t.cat === cat).reduce((s, t) => s + t.amount, 0);
+    const spent = factTx.filter(t => t.type === 'expense' && t.cat === cat).reduce((s, t) => s + t.amount, 0);
     return spent > limit * 0.8;
   });
 
@@ -176,7 +260,7 @@ function Overview({ pockets, transactions, budgets, viewMonth, setViewMonth, all
       {alerts.length > 0 && (
         <div style={{ padding: '12px 16px 0' }}>
           {alerts.map(([cat, limit]) => {
-            const spent = vtx.filter(t => t.type === 'expense' && t.cat === cat).reduce((s, t) => s + t.amount, 0);
+            const spent = factTx.filter(t => t.type === 'expense' && t.cat === cat).reduce((s, t) => s + t.amount, 0);
             const over = spent > limit;
             return (
               <div key={cat} style={{ ...S.card, background: over ? '#450a0a' : '#451a03', border: `1px solid ${over ? '#ef4444' : '#f59e0b'}33` }}>
@@ -197,12 +281,22 @@ function Overview({ pockets, transactions, budgets, viewMonth, setViewMonth, all
           <button onClick={() => changeMonth(1)} style={{ ...S.btn('ghost'), padding: '8px 14px' }}>›</button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-          {[['Доход', income, '#10b981'], ['Расход', expense, '#ef4444'], ['Баланс', balance, balance >= 0 ? '#10b981' : '#ef4444'], ['Сбережения', null, savings >= 20 ? '#10b981' : savings < 0 ? '#ef4444' : '#f59e0b']].map(([lbl, val, col]) => (
-            <div key={lbl} style={{ background: '#1e293b', borderRadius: 14, padding: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div style={S.label}>{lbl}</div>
-              <div style={{ fontSize: 20, fontWeight: 600, color: col }}>{lbl === 'Сбережения' ? (savings !== null ? savings + '%' : '—') : fmt(val)}</div>
-            </div>
-          ))}
+          <div style={{ background: '#1e293b', borderRadius: 14, padding: 14, border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={S.label}>Факт доход</div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: '#10b981' }}>{fmt(income)}</div>
+          </div>
+          <div style={{ background: '#1e293b', borderRadius: 14, padding: 14, border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={S.label}>Факт расход</div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: '#ef4444' }}>{fmt(expense)}</div>
+          </div>
+          <div style={{ background: '#1e293b', borderRadius: 14, padding: 14, border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={S.label}>Баланс</div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: balance >= 0 ? '#10b981' : '#ef4444' }}>{fmt(balance)}</div>
+          </div>
+          <div style={{ background: '#1e293b', borderRadius: 14, padding: 14, border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={S.label}>План расходов</div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: '#60a5fa' }}>{fmt(planExp)}</div>
+          </div>
         </div>
       </div>
 
@@ -218,10 +312,6 @@ function Overview({ pockets, transactions, budgets, viewMonth, setViewMonth, all
               <Bar dataKey="expense" fill="#ef4444" radius={[4,4,0,0]} />
             </BarChart>
           </ResponsiveContainer>
-          <div style={{ display: 'flex', gap: 16, marginTop: 8, justifyContent: 'center', fontSize: 12, color: '#64748b' }}>
-            <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#10b981', borderRadius: 2, marginRight: 4 }} />Доход</span>
-            <span><span style={{ display: 'inline-block', width: 10, height: 10, background: '#ef4444', borderRadius: 2, marginRight: 4 }} />Расход</span>
-          </div>
         </div>
 
         <div style={S.card}>
@@ -237,29 +327,31 @@ function Overview({ pockets, transactions, budgets, viewMonth, setViewMonth, all
 }
 
 // ── Transactions ──────────────────────────────────────────────────────────────
-function Transactions({ transactions, onAdd, onDelete, onTransfer, expenseCats, incomeCats, allCats, showToast }) {
-  const [showForm, setShowForm]       = useState(false);
+function Transactions({ transactions, onAdd, onDelete, onEdit, onTransfer, expenseCats, incomeCats, allCats, showToast }) {
+  const [showForm, setShowForm]         = useState(false);
   const [showTransfer, setShowTransfer] = useState(false);
-  const [type, setType]               = useState('expense');
-  const [amount, setAmount]           = useState('');
-  const [cat, setCat]                 = useState('');
-  const [pocket, setPocket]           = useState(POCKETS[0].key);
-  const [date, setDate]               = useState(todayStr());
-  const [note, setNote]               = useState('');
-  const [filter, setFilter]           = useState('all');
-  const [fromP, setFromP]             = useState(POCKETS[0].key);
-  const [toP, setToP]                 = useState(POCKETS[1].key);
-  const [trAmt, setTrAmt]             = useState('');
+  const [selectedTx, setSelectedTx]    = useState(null);
+  const [type, setType]     = useState('expense');
+  const [amount, setAmount] = useState('');
+  const [cat, setCat]       = useState('');
+  const [pocket, setPocket] = useState(POCKETS[0].key);
+  const [date, setDate]     = useState(todayStr());
+  const [note, setNote]     = useState('');
+  const [plan, setPlan]     = useState('fact');
+  const [filter, setFilter] = useState('all');
+  const [planFilter, setPlanFilter] = useState('all');
+  const [fromP, setFromP]   = useState(POCKETS[0].key);
+  const [toP, setToP]       = useState(POCKETS[1].key);
+  const [trAmt, setTrAmt]   = useState('');
 
   const cats = type === 'expense' ? expenseCats : incomeCats;
-
   useEffect(() => { if (cats.length) setCat(cats[0].label); }, [type]);
 
   const handleAdd = async () => {
     const a = parseFloat(amount);
     if (!a || a <= 0) return alert('Введи корректную сумму');
-    await onAdd({ type, amount: a, cat, pocket, date, note });
-    setAmount(''); setNote(''); setShowForm(false);
+    await onAdd({ type, amount: a, cat, pocket, date, note, plan });
+    setAmount(''); setNote(''); setPlan('fact'); setShowForm(false);
   };
 
   const handleTransfer = async () => {
@@ -271,22 +363,28 @@ function Transactions({ transactions, onAdd, onDelete, onTransfer, expenseCats, 
     showToast('Перевод выполнен ✓');
   };
 
-  const filtered = transactions.filter(t => filter === 'all' || t.type === filter);
+  let filtered = transactions.filter(t => filter === 'all' || t.type === filter);
+  if (planFilter !== 'all') filtered = filtered.filter(t => (t.plan || 'fact') === planFilter);
 
   return (
     <div>
       <div style={{ padding: '20px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <span style={{ fontSize: 22, fontWeight: 600 }}>Операции</span>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setShowTransfer(true)} style={{ ...S.btn('ghost'), padding: '10px 14px', fontSize: 13 }}>⇄ Перевод</button>
+          <button onClick={() => setShowTransfer(true)} style={{ ...S.btn('ghost'), padding: '10px 14px', fontSize: 13 }}>⇄</button>
           <button onClick={() => setShowForm(true)} style={{ ...S.btn('primary'), padding: '10px 18px', fontSize: 22, lineHeight: 1 }}>+</button>
         </div>
       </div>
 
-      <div style={{ padding: '0 16px 12px', display: 'flex', gap: 8 }}>
+      <div style={{ padding: '0 16px 8px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {['all', 'income', 'expense'].map(f => (
-          <button key={f} onClick={() => setFilter(f)} style={{ ...S.btn(filter === f ? 'primary' : 'ghost'), padding: '8px 14px', fontSize: 13 }}>
+          <button key={f} onClick={() => setFilter(f)} style={{ ...S.btn(filter === f ? 'primary' : 'ghost'), padding: '7px 12px', fontSize: 12 }}>
             {f === 'all' ? 'Все' : f === 'income' ? 'Доходы' : 'Расходы'}
+          </button>
+        ))}
+        {['all', 'fact', 'plan'].map(f => (
+          <button key={f} onClick={() => setPlanFilter(f)} style={{ ...S.btn(planFilter === f ? 'default' : 'ghost'), padding: '7px 12px', fontSize: 12, background: planFilter === f ? (f === 'plan' ? '#1e3a5f' : '#334155') : 'rgba(255,255,255,0.06)', color: planFilter === f && f === 'plan' ? '#60a5fa' : '#f1f5f9' }}>
+            {f === 'all' ? 'Все типы' : f === 'fact' ? '✅ Факт' : '📋 План'}
           </button>
         ))}
       </div>
@@ -295,19 +393,37 @@ function Transactions({ transactions, onAdd, onDelete, onTransfer, expenseCats, 
         <div style={S.card}>
           {filtered.length === 0
             ? <div style={{ color: '#64748b', fontSize: 14, textAlign: 'center', padding: '20px 0' }}>Нет транзакций</div>
-            : filtered.map(t => <TxRow key={t.id} t={t} onDelete={onDelete} allCats={allCats} />)
+            : filtered.map(t => <TxRow key={t.id} t={t} onSelect={setSelectedTx} allCats={allCats} />)
           }
         </div>
       </div>
 
+      {/* Detail/Edit Modal */}
+      <TxDetailModal
+        tx={selectedTx}
+        open={!!selectedTx}
+        onClose={() => setSelectedTx(null)}
+        onDelete={onDelete}
+        onSave={onEdit}
+        expenseCats={expenseCats}
+        incomeCats={incomeCats}
+      />
+
       {/* Add Modal */}
       <Modal open={showForm} onClose={() => setShowForm(false)} title="Добавить операцию">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
           {['expense', 'income'].map(tp => (
             <button key={tp} onClick={() => setType(tp)} style={{ ...S.btn(), background: type === tp ? (tp === 'expense' ? '#ef4444' : '#10b981') : 'rgba(255,255,255,0.06)', color: '#fff', fontWeight: type === tp ? 600 : 400 }}>
               {tp === 'expense' ? 'Расход' : 'Доход'}
             </button>
           ))}
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <div style={S.label}>План или факт</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button onClick={() => setPlan('fact')} style={{ ...S.btn(), background: plan === 'fact' ? '#10b981' : 'rgba(255,255,255,0.06)', color: '#fff', fontWeight: plan === 'fact' ? 600 : 400 }}>✅ Факт</button>
+            <button onClick={() => setPlan('plan')} style={{ ...S.btn(), background: plan === 'plan' ? '#3b82f6' : 'rgba(255,255,255,0.06)', color: '#fff', fontWeight: plan === 'plan' ? 600 : 400 }}>📋 План</button>
+          </div>
         </div>
         {[['Сумма (₽)', <input style={S.input} type="number" placeholder="0" value={amount} onChange={e => setAmount(e.target.value)} inputMode="numeric" />],
           ['Категория', <select style={S.select} value={cat} onChange={e => setCat(e.target.value)}>{cats.map(c => <option key={c.label} value={c.label}>{c.icon} {c.label}</option>)}</select>],
@@ -315,9 +431,7 @@ function Transactions({ transactions, onAdd, onDelete, onTransfer, expenseCats, 
           ['Дата', <input style={S.input} type="date" value={date} onChange={e => setDate(e.target.value)} />],
           ['Комментарий', <input style={S.input} type="text" placeholder="Необязательно" value={note} onChange={e => setNote(e.target.value)} />],
         ].map(([lbl, el]) => (
-          <div key={lbl} style={{ marginBottom: 12 }}>
-            <div style={S.label}>{lbl}</div>{el}
-          </div>
+          <div key={lbl} style={{ marginBottom: 12 }}><div style={S.label}>{lbl}</div>{el}</div>
         ))}
         <button onClick={handleAdd} style={{ ...S.btn('primary'), width: '100%', textAlign: 'center', marginTop: 8 }}>Добавить</button>
       </Modal>
@@ -352,22 +466,27 @@ function Analytics({ transactions, budgets, setBudgets, viewMonth, setViewMonth,
   const [budgetCat, setBudgetCat]   = useState('');
   const [budgetAmt, setBudgetAmt]   = useState('');
   const [exportLoading, setExportLoading] = useState(false);
+  const [showPlanFact, setShowPlanFact]   = useState(false);
 
   const [y, m] = viewMonth.split('-').map(Number);
   const changeMonth = d => { const nd = new Date(y, m - 1 + d, 1); setViewMonth(nd.toISOString().slice(0, 7)); };
 
-  const vtx = transactions.filter(t => t.date?.slice(0, 7) === viewMonth);
+  const vtx     = transactions.filter(t => t.date?.slice(0, 7) === viewMonth);
+  const factTx  = vtx.filter(t => t.plan !== 'plan');
+  const planTx  = vtx.filter(t => t.plan === 'plan');
 
-  const catTotals = type => {
+  const catTotals = (txList, type) => {
     const map = {};
-    vtx.filter(t => t.type === type).forEach(t => { map[t.cat] = (map[t.cat] || 0) + t.amount; });
+    txList.filter(t => t.type === type).forEach(t => { map[t.cat] = (map[t.cat] || 0) + t.amount; });
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   };
 
-  const expTotals = catTotals('expense');
-  const incTotals = catTotals('income');
-  const totalExp  = expTotals.reduce((s, [, v]) => s + v, 0);
-  const totalInc  = incTotals.reduce((s, [, v]) => s + v, 0);
+  const expTotals  = catTotals(factTx, 'expense');
+  const incTotals  = catTotals(factTx, 'income');
+  const planTotals = catTotals(planTx, 'expense');
+  const totalExp   = expTotals.reduce((s, [, v]) => s + v, 0);
+  const totalInc   = incTotals.reduce((s, [, v]) => s + v, 0);
+  const totalPlan  = planTotals.reduce((s, [, v]) => s + v, 0);
 
   const handleSetBudget = async () => {
     const a = parseFloat(budgetAmt);
@@ -385,12 +504,12 @@ function Analytics({ transactions, budgets, setBudgets, viewMonth, setViewMonth,
     await setDoc(doc(db, 'settings', 'budgets'), updated);
   };
 
-  // Export to Excel
   const exportExcel = async () => {
     setExportLoading(true);
     try {
       const rows = transactions.map(t => ({
         Дата: t.date, Тип: t.type === 'income' ? 'Доход' : 'Расход',
+        ПланФакт: t.plan === 'plan' ? 'План' : 'Факт',
         Сумма: t.amount, Категория: t.cat,
         Карман: POCKETS.find(p => p.key === t.pocket)?.label || t.pocket,
         Комментарий: t.note || '',
@@ -403,6 +522,31 @@ function Analytics({ transactions, budgets, setBudgets, viewMonth, setViewMonth,
     } catch (e) { showToast('Ошибка экспорта', 'error'); }
     setExportLoading(false);
   };
+
+  const CatBar = ({ items, total, color, budgetsMap, factMap }) => (
+    items.length === 0
+      ? <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: '12px 0' }}>Нет данных</div>
+      : items.map(([cat, amt]) => {
+          const pct = total > 0 ? Math.round(amt / total * 100) : 0;
+          const budget = budgetsMap?.[cat];
+          const factAmt = factMap?.[cat] || 0;
+          const over = budget && factAmt > budget;
+          return (
+            <div key={cat} style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                <span>{cat} {over ? '⚠️' : ''}</span>
+                <span style={{ fontWeight: 500, color: over ? '#ef4444' : '#f1f5f9' }}>{fmt(amt)} <span style={{ color: '#64748b', fontWeight: 400 }}>({pct}%)</span></span>
+              </div>
+              <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: pct + '%', background: over ? '#ef4444' : color, borderRadius: 3 }} />
+              </div>
+              {budget && <div style={{ fontSize: 11, color: over ? '#ef4444' : '#64748b', marginTop: 2 }}>Лимит: {fmtFull(budget)} · {over ? '‼️ Превышен на ' + fmtFull(factAmt - budget) : 'Осталось ' + fmtFull(budget - factAmt)}</div>}
+            </div>
+          );
+        })
+  );
+
+  const factExpMap = Object.fromEntries(expTotals);
 
   return (
     <div>
@@ -420,31 +564,38 @@ function Analytics({ transactions, budgets, setBudgets, viewMonth, setViewMonth,
       </div>
 
       <div style={{ padding: '0 16px' }}>
-        {[['Расходы по категориям', expTotals, totalExp, '#3b82f6', 'expense'],
-          ['Доходы по категориям',  incTotals, totalInc, '#10b981', 'income']].map(([title, totals, total, color]) => (
-          <div key={title} style={S.card}>
-            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>{title}</div>
-            {totals.length === 0
-              ? <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: '12px 0' }}>Нет данных</div>
-              : totals.map(([cat, amt]) => {
-                  const pct = total > 0 ? Math.round(amt / total * 100) : 0;
-                  const budget = budgets[cat];
-                  const over = budget && amt > budget;
-                  return (
-                    <div key={cat} style={{ marginBottom: 12 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                        <span>{cat} {over ? '⚠️' : ''}</span>
-                        <span style={{ fontWeight: 500, color: over ? '#ef4444' : '#f1f5f9' }}>{fmt(amt)} <span style={{ color: '#64748b', fontWeight: 400 }}>({pct}%)</span></span>
-                      </div>
-                      <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 3, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: pct + '%', background: over ? '#ef4444' : color, borderRadius: 3 }} />
-                      </div>
-                      {budget && <div style={{ fontSize: 11, color: over ? '#ef4444' : '#64748b', marginTop: 2 }}>Лимит: {fmtFull(budget)} · {over ? '‼️ Превышен на ' + fmtFull(amt - budget) : 'Осталось ' + fmtFull(budget - amt)}</div>}
-                    </div>
-                  );
-                })}
+        {/* Plan vs Fact summary */}
+        <div style={S.card}>
+          <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>📋 План vs ✅ Факт (расходы)</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ color: '#60a5fa' }}>📋 Запланировано</span>
+            <span style={{ fontWeight: 600, color: '#60a5fa' }}>{fmt(totalPlan)}</span>
           </div>
-        ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ color: '#ef4444' }}>✅ Потрачено</span>
+            <span style={{ fontWeight: 600, color: '#ef4444' }}>{fmt(totalExp)}</span>
+          </div>
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '8px 0' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span style={{ color: '#64748b' }}>Разница</span>
+            <span style={{ fontWeight: 600, color: totalPlan - totalExp >= 0 ? '#10b981' : '#ef4444' }}>{fmt(totalPlan - totalExp)}</span>
+          </div>
+        </div>
+
+        <div style={S.card}>
+          <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>Фактические расходы</div>
+          <CatBar items={expTotals} total={totalExp} color="#3b82f6" budgetsMap={budgets} factMap={factExpMap} />
+        </div>
+
+        <div style={S.card}>
+          <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>Плановые расходы</div>
+          <CatBar items={planTotals} total={totalPlan} color="#60a5fa" />
+        </div>
+
+        <div style={S.card}>
+          <div style={{ fontSize: 13, color: '#64748b', marginBottom: 12 }}>Доходы по категориям</div>
+          <CatBar items={incTotals} total={totalInc} color="#10b981" />
+        </div>
 
         <div style={S.card}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -454,7 +605,7 @@ function Analytics({ transactions, budgets, setBudgets, viewMonth, setViewMonth,
           {Object.keys(budgets).length === 0
             ? <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: '12px 0' }}>Лимиты не установлены</div>
             : Object.entries(budgets).map(([cat, limit]) => {
-                const spent = vtx.filter(t => t.type === 'expense' && t.cat === cat).reduce((s, t) => s + t.amount, 0);
+                const spent = factTx.filter(t => t.type === 'expense' && t.cat === cat).reduce((s, t) => s + t.amount, 0);
                 const pct = Math.min(Math.round(spent / limit * 100), 100);
                 const over = spent > limit;
                 return (
@@ -500,8 +651,8 @@ function Goals({ goals, setGoals, pockets, showToast }) {
   const [current, setCurrent]   = useState('');
   const [icon, setIcon]         = useState('🎯');
   const [editId, setEditId]     = useState(null);
-
   const ICONS = ['🎯','🚗','✈️','🏠','📱','💍','🏖️','📚','💪','🐕'];
+  const total = Object.values(pockets).reduce((s, v) => s + v, 0);
 
   const saveGoal = async () => {
     if (!name || !target) return alert('Введи название и цель');
@@ -519,22 +670,18 @@ function Goals({ goals, setGoals, pockets, showToast }) {
     await setDoc(doc(db, 'settings', 'goals'), updated);
   };
 
-  const totalSaved = Object.values(pockets).reduce((s, v) => s + v, 0);
-
   return (
     <div>
       <div style={{ padding: '20px 16px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <span style={{ fontSize: 22, fontWeight: 600 }}>Цели</span>
         <button onClick={() => { setEditId(null); setName(''); setTarget(''); setCurrent(''); setShowForm(true); }} style={{ ...S.btn('primary'), padding: '10px 18px', fontSize: 22, lineHeight: 1 }}>+</button>
       </div>
-
       <div style={{ padding: '0 16px 12px' }}>
         <div style={S.card}>
-          <div style={{ fontSize: 13, color: '#64748b', marginBottom: 4 }}>Доступно во всех карманах</div>
-          <div style={{ fontSize: 24, fontWeight: 600, color: '#10b981' }}>{fmtFull(totalSaved)}</div>
+          <div style={S.label}>Доступно во всех карманах</div>
+          <div style={{ fontSize: 24, fontWeight: 600, color: '#10b981' }}>{fmtFull(total)}</div>
         </div>
       </div>
-
       <div style={{ padding: '0 16px' }}>
         {Object.keys(goals).length === 0 ? (
           <div style={{ ...S.card, textAlign: 'center', padding: '32px 16px' }}>
@@ -543,7 +690,6 @@ function Goals({ goals, setGoals, pockets, showToast }) {
           </div>
         ) : Object.entries(goals).map(([id, g]) => {
           const pct = Math.min(Math.round(g.current / g.target * 100), 100);
-          const remaining = g.target - g.current;
           return (
             <div key={id} style={S.card}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
@@ -560,18 +706,16 @@ function Goals({ goals, setGoals, pockets, showToast }) {
                 </div>
               </div>
               <div style={{ height: 10, background: 'rgba(255,255,255,0.08)', borderRadius: 5, overflow: 'hidden', marginBottom: 8 }}>
-                <div style={{ height: '100%', width: pct + '%', background: pct >= 100 ? '#10b981' : '#3b82f6', borderRadius: 5, transition: 'width 0.5s' }} />
+                <div style={{ height: '100%', width: pct + '%', background: pct >= 100 ? '#10b981' : '#3b82f6', borderRadius: 5 }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
                 <span style={{ color: '#10b981', fontWeight: 500 }}>{fmtFull(g.current)} накоплено</span>
-                <span style={{ color: '#64748b' }}>{pct >= 100 ? '✅ Достигнуто!' : `осталось ${fmtFull(remaining)}`}</span>
+                <span style={{ color: '#64748b' }}>{pct >= 100 ? '✅ Достигнуто!' : `осталось ${fmtFull(g.target - g.current)}`}</span>
               </div>
-              <div style={{ marginTop: 6, fontSize: 12, color: '#64748b', textAlign: 'right' }}>{pct}%</div>
             </div>
           );
         })}
       </div>
-
       <Modal open={showForm} onClose={() => setShowForm(false)} title={editId ? 'Редактировать цель' : 'Новая цель'}>
         <div style={{ marginBottom: 12 }}>
           <div style={S.label}>Иконка</div>
@@ -581,7 +725,7 @@ function Goals({ goals, setGoals, pockets, showToast }) {
             ))}
           </div>
         </div>
-        {[['Название цели', <input style={S.input} type="text" placeholder="Например: Новая машина" value={name} onChange={e => setName(e.target.value)} />],
+        {[['Название', <input style={S.input} type="text" placeholder="Новая машина" value={name} onChange={e => setName(e.target.value)} />],
           ['Сумма цели (₽)', <input style={S.input} type="number" placeholder="0" value={target} onChange={e => setTarget(e.target.value)} inputMode="numeric" />],
           ['Уже накоплено (₽)', <input style={S.input} type="number" placeholder="0" value={current} onChange={e => setCurrent(e.target.value)} inputMode="numeric" />],
         ].map(([lbl, el]) => (
@@ -593,51 +737,46 @@ function Goals({ goals, setGoals, pockets, showToast }) {
   );
 }
 
-// ── Settings (Pockets + Categories + Sheets) ──────────────────────────────────
+// ── Settings ──────────────────────────────────────────────────────────────────
 function Settings({ pockets, setPockets, expenseCats, incomeCats, setExpenseCats, setIncomeCats, transactions, onImportSheets, showToast }) {
-  const [tab, setTab]           = useState('pockets');
-  const [editing, setEditing]   = useState(null);
-  const [val, setVal]           = useState('');
-  const [newCat, setNewCat]     = useState('');
-  const [newIcon, setNewIcon]   = useState('📌');
+  const [tab, setTab]         = useState('pockets');
+  const [editing, setEditing] = useState(null);
+  const [val, setVal]         = useState('');
+  const [newCat, setNewCat]   = useState('');
+  const [newIcon, setNewIcon] = useState('📌');
   const [sheetsLoading, setSheetsLoading] = useState(false);
-  const [apiKey, setApiKey]     = useState('');
+  const [apiKey, setApiKey]   = useState('');
   const [showApiModal, setShowApiModal] = useState(false);
+  const ICONS_LIST = ['📌','🛒','☕','🚗','🏠','💡','👗','💊','🎬','👶','📱','📦','🚚','🏭','🔄','📣','💻','👥','💰','🛍️','💳','↩️','➕'];
+  const total = Object.values(pockets).reduce((s, v) => s + v, 0);
 
   const savePocket = async key => {
-    const v = parseFloat(val);
-    if (isNaN(v)) return;
+    const v = parseFloat(val); if (isNaN(v)) return;
     const updated = { ...pockets, [key]: v };
     setPockets(updated);
     await setDoc(doc(db, 'settings', 'pockets'), updated);
-    setEditing(null);
-    showToast('Сохранено ✓');
+    setEditing(null); showToast('Сохранено ✓');
   };
 
   const addCat = async type => {
     if (!newCat.trim()) return;
     const newEntry = { label: newCat.trim(), icon: newIcon };
     if (type === 'expense') {
-      const updated = [...expenseCats, newEntry];
-      setExpenseCats(updated);
+      const updated = [...expenseCats, newEntry]; setExpenseCats(updated);
       await setDoc(doc(db, 'settings', 'expenseCats'), { cats: updated });
     } else {
-      const updated = [...incomeCats, newEntry];
-      setIncomeCats(updated);
+      const updated = [...incomeCats, newEntry]; setIncomeCats(updated);
       await setDoc(doc(db, 'settings', 'incomeCats'), { cats: updated });
     }
-    setNewCat(''); setNewIcon('📌');
-    showToast('Категория добавлена ✓');
+    setNewCat(''); setNewIcon('📌'); showToast('Категория добавлена ✓');
   };
 
   const deleteCat = async (type, label) => {
     if (type === 'expense') {
-      const updated = expenseCats.filter(c => c.label !== label);
-      setExpenseCats(updated);
+      const updated = expenseCats.filter(c => c.label !== label); setExpenseCats(updated);
       await setDoc(doc(db, 'settings', 'expenseCats'), { cats: updated });
     } else {
-      const updated = incomeCats.filter(c => c.label !== label);
-      setIncomeCats(updated);
+      const updated = incomeCats.filter(c => c.label !== label); setIncomeCats(updated);
       await setDoc(doc(db, 'settings', 'incomeCats'), { cats: updated });
     }
   };
@@ -645,37 +784,26 @@ function Settings({ pockets, setPockets, expenseCats, incomeCats, setExpenseCats
   const importFromSheets = async () => {
     if (!apiKey) { setShowApiModal(true); return; }
     setSheetsLoading(true);
-    try {
-      await onImportSheets(apiKey);
-      showToast('Импорт завершён ✓');
-    } catch(e) {
-      showToast('Ошибка импорта: ' + e.message, 'error');
-    }
+    try { await onImportSheets(apiKey); showToast('Импорт завершён ✓'); }
+    catch(e) { showToast('Ошибка: ' + e.message, 'error'); }
     setSheetsLoading(false);
   };
-
-  const ICONS_LIST = ['📌','🛒','☕','🚗','🏠','💡','👗','💊','🎬','👶','📱','📦','🚚','🏭','🔄','📣','💻','👥','💰','🛍️','💳','↩️','➕','🏦','💼','💵','📈'];
-
-  const total = Object.values(pockets).reduce((s, v) => s + v, 0);
 
   return (
     <div>
       <div style={{ padding: '20px 16px 0', marginBottom: 16 }}>
         <span style={{ fontSize: 22, fontWeight: 600 }}>Настройки</span>
       </div>
-
       <div style={{ padding: '0 16px 12px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {[['pockets','Карманы'],['cats','Категории'],['sheets','Google Sheets']].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ ...S.btn(tab === k ? 'primary' : 'ghost'), padding: '8px 14px', fontSize: 13 }}>{l}</button>
         ))}
       </div>
-
       <div style={{ padding: '0 16px' }}>
-        {/* Pockets */}
         {tab === 'pockets' && (
           <>
             <div style={{ ...S.card, marginBottom: 12 }}>
-              <div style={S.label}>Итого во всех карманах</div>
+              <div style={S.label}>Итого</div>
               <div style={{ fontSize: 24, fontWeight: 600 }}>{fmtFull(total)}</div>
             </div>
             {POCKETS.map(p => (
@@ -702,8 +830,6 @@ function Settings({ pockets, setPockets, expenseCats, incomeCats, setExpenseCats
             ))}
           </>
         )}
-
-        {/* Categories */}
         {tab === 'cats' && (
           <>
             {[['expense', expenseCats, 'Категории расходов'], ['income', incomeCats, 'Категории доходов']].map(([type, cats, title]) => (
@@ -716,14 +842,14 @@ function Settings({ pockets, setPockets, expenseCats, incomeCats, setExpenseCats
                   </div>
                 ))}
                 <div style={{ marginTop: 14 }}>
-                  <div style={S.label}>Добавить категорию</div>
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
+                  <div style={S.label}>Добавить</div>
+                  <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
                     {ICONS_LIST.map(i => (
-                      <button key={i} onClick={() => setNewIcon(i)} style={{ fontSize: 18, background: newIcon === i ? '#1e3a5f' : 'rgba(255,255,255,0.06)', border: newIcon === i ? '1px solid #3b82f6' : '1px solid transparent', borderRadius: 6, padding: '4px 8px', cursor: 'pointer' }}>{i}</button>
+                      <button key={i} onClick={() => setNewIcon(i)} style={{ fontSize: 16, background: newIcon === i ? '#1e3a5f' : 'rgba(255,255,255,0.06)', border: newIcon === i ? '1px solid #3b82f6' : '1px solid transparent', borderRadius: 6, padding: '4px 8px', cursor: 'pointer' }}>{i}</button>
                     ))}
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <input style={{ ...S.input, flex: 1 }} type="text" placeholder="Название категории" value={newCat} onChange={e => setNewCat(e.target.value)} />
+                    <input style={{ ...S.input, flex: 1 }} type="text" placeholder="Название" value={newCat} onChange={e => setNewCat(e.target.value)} />
                     <button onClick={() => addCat(type)} style={{ ...S.btn('primary'), padding: '12px 16px', whiteSpace: 'nowrap' }}>+ Добавить</button>
                   </div>
                 </div>
@@ -731,28 +857,12 @@ function Settings({ pockets, setPockets, expenseCats, incomeCats, setExpenseCats
             ))}
           </>
         )}
-
-        {/* Google Sheets */}
         {tab === 'sheets' && (
           <div style={S.card}>
             <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 8 }}>📊 Импорт из Google Sheets ДДС</div>
-            <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, marginBottom: 16 }}>
-              Импортирует транзакции из листа "Проводки" твоей ДДС таблицы в приложение. Уже существующие записи не дублируются.
-            </div>
-            <div style={{ background: '#0f172a', borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 12, color: '#94a3b8', lineHeight: 1.7 }}>
-              <div style={{ color: '#3b82f6', fontWeight: 500, marginBottom: 4 }}>Таблица ДДС подключена:</div>
-              <div style={{ wordBreak: 'break-all' }}>ID: {SPREADSHEET_ID}</div>
-              <div style={{ marginTop: 4 }}>Лист: Проводки · Колонки: A=Дата, B=Сумма, C=Категория, D=Тип, F=Комментарий</div>
-            </div>
-
+            <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, marginBottom: 16 }}>Импортирует транзакции из листа "Проводки" твоей ДДС таблицы.</div>
             {!apiKey ? (
-              <div>
-                <div style={{ fontSize: 13, color: '#f59e0b', marginBottom: 12 }}>⚠️ Нужен Google API ключ для чтения таблицы</div>
-                <button onClick={() => setShowApiModal(true)} style={{ ...S.btn('ghost'), width: '100%', textAlign: 'center', marginBottom: 8 }}>Ввести API ключ</button>
-                <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>
-                  Как получить: console.cloud.google.com → APIs → Google Sheets API → Credentials → Create API Key
-                </div>
-              </div>
+              <button onClick={() => setShowApiModal(true)} style={{ ...S.btn('ghost'), width: '100%', textAlign: 'center', marginBottom: 8 }}>Ввести API ключ</button>
             ) : (
               <div>
                 <div style={{ fontSize: 12, color: '#10b981', marginBottom: 12 }}>✓ API ключ сохранён</div>
@@ -762,23 +872,10 @@ function Settings({ pockets, setPockets, expenseCats, incomeCats, setExpenseCats
                 <button onClick={() => setApiKey('')} style={{ ...S.btn('ghost'), width: '100%', textAlign: 'center', fontSize: 13 }}>Сменить API ключ</button>
               </div>
             )}
-
-            <div style={{ marginTop: 16, padding: 12, background: '#064e3b', borderRadius: 10, fontSize: 12, color: '#10b981', lineHeight: 1.6 }}>
-              <div style={{ fontWeight: 500, marginBottom: 4 }}>Из приложения → в таблицу:</div>
-              Когда добавляешь транзакцию по "Бизнес счёт", она автоматически появится в ДДС. Для этого нужно настроить Google Apps Script — инструкция в README.
-            </div>
           </div>
         )}
       </div>
-
       <Modal open={showApiModal} onClose={() => setShowApiModal(false)} title="Google API ключ">
-        <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 16, lineHeight: 1.6 }}>
-          1. Зайди на <span style={{ color: '#3b82f6' }}>console.cloud.google.com</span><br/>
-          2. Создай проект или выбери существующий<br/>
-          3. APIs & Services → Enable APIs → включи Google Sheets API<br/>
-          4. Credentials → Create Credentials → API Key<br/>
-          5. Скопируй ключ и вставь ниже
-        </div>
         <div style={{ marginBottom: 16 }}>
           <div style={S.label}>API ключ</div>
           <input style={S.input} type="text" placeholder="AIzaSy..." value={apiKey} onChange={e => setApiKey(e.target.value)} />
@@ -812,8 +909,7 @@ export default function App() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const loads = ['pockets','budgets','goals','expenseCats','incomeCats'].map(k => getDoc(doc(db, 'settings', k)));
-        const [ps, bs, gs, ec, ic] = await Promise.all(loads);
+        const [ps, bs, gs, ec, ic] = await Promise.all(['pockets','budgets','goals','expenseCats','incomeCats'].map(k => getDoc(doc(db, 'settings', k))));
         if (ps.exists()) setPockets(ps.data());
         if (bs.exists()) setBudgets(bs.data());
         if (gs.exists()) setGoals(gs.data());
@@ -834,25 +930,29 @@ export default function App() {
     return unsub;
   }, []);
 
-  
   const addTransaction = useCallback(async (tx) => {
     const id = Date.now().toString();
     await setDoc(doc(db, 'transactions', id), { ...tx, id, createdAt: new Date().toISOString() });
-    if (tx.pocket === 'business') {
-      fetch('/api/sheets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tx) }).catch(() => {});
+    if (tx.pocket === 'business' && tx.plan !== 'plan') {
+      fetch('/api/sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tx),
+      }).catch(() => {});
     }
   }, []);
-  
+
   const deleteTransaction = useCallback(async id => {
     await deleteDoc(doc(db, 'transactions', String(id)));
   }, []);
 
+  const editTransaction = useCallback(async (id, updates) => {
+    await updateDoc(doc(db, 'transactions', String(id)), updates);
+    showToast('Изменено ✓');
+  }, []);
+
   const transferPockets = useCallback(async (fromKey, toKey, amount) => {
-    const updated = {
-      ...pockets,
-      [fromKey]: (pockets[fromKey] || 0) - amount,
-      [toKey]:   (pockets[toKey]   || 0) + amount,
-    };
+    const updated = { ...pockets, [fromKey]: (pockets[fromKey] || 0) - amount, [toKey]: (pockets[toKey] || 0) + amount };
     setPockets(updated);
     await setDoc(doc(db, 'settings', 'pockets'), updated);
     const id = Date.now().toString();
@@ -860,15 +960,14 @@ export default function App() {
     const toLabel   = POCKETS.find(p => p.key === toKey)?.label   || toKey;
     await setDoc(doc(db, 'transactions', id), {
       id, type: 'transfer', amount, pocket: fromKey, toPocket: toKey,
-      cat: `Перевод: ${fromLabel} → ${toLabel}`, date: todayStr(),
-      note: '', createdAt: new Date().toISOString(),
+      cat: `Перевод: ${fromLabel} → ${toLabel}`, date: todayStr(), note: '', createdAt: new Date().toISOString(),
     });
   }, [pockets]);
 
   const importFromSheets = useCallback(async (apiKey) => {
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/Проводки!A2:G2000?key=${apiKey}`;
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/%D0%9F%D1%80%D0%BE%D0%B2%D0%BE%D0%B4%D0%BA%D0%B8!A2:G2000?key=${apiKey}`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error('Ошибка доступа к таблице. Проверь API ключ и настройки доступа.');
+    if (!res.ok) throw new Error('Ошибка доступа к таблице');
     const data = await res.json();
     const rows = data.values || [];
     let count = 0;
@@ -881,12 +980,8 @@ export default function App() {
       if (!amount) continue;
       const type = typeRaw?.toLowerCase().includes('поступ') ? 'income' : 'expense';
       const id = `sheets_${dateRaw}_${amount}_${cat}`.replace(/\s/g, '_');
-      const existing = transactions.find(t => t.id === id);
-      if (existing) continue;
-      await setDoc(doc(db, 'transactions', id), {
-        id, type, amount, cat, pocket: 'business', date,
-        note: comment || '', fromSheets: true, createdAt: new Date().toISOString(),
-      });
+      if (transactions.find(t => t.id === id)) continue;
+      await setDoc(doc(db, 'transactions', id), { id, type, amount, cat, pocket: 'business', date, note: comment || '', fromSheets: true, plan: 'fact', createdAt: new Date().toISOString() });
       count++;
     }
     if (count === 0) showToast('Новых записей нет', 'warn');
@@ -904,23 +999,21 @@ export default function App() {
   );
 
   const TABS = [
-    { key: 'overview',      label: 'Обзор',    icon: '◉' },
-    { key: 'transactions',  label: 'Операции', icon: '⇅' },
-    { key: 'analytics',     label: 'Аналитика',icon: '▦' },
-    { key: 'goals',         label: 'Цели',     icon: '🎯' },
-    { key: 'settings',      label: 'Настройки',icon: '⚙' },
+    { key: 'overview',     label: 'Обзор',     icon: '◉' },
+    { key: 'transactions', label: 'Операции',  icon: '⇅' },
+    { key: 'analytics',   label: 'Аналитика', icon: '▦' },
+    { key: 'goals',       label: 'Цели',      icon: '🎯' },
+    { key: 'settings',    label: 'Настройки', icon: '⚙' },
   ];
 
   return (
     <div style={S.app}>
       <Toast msg={toast.msg} type={toast.type} />
-
       {tab === 'overview'     && <Overview     pockets={pockets} transactions={transactions} budgets={budgets} viewMonth={viewMonth} setViewMonth={setViewMonth} allCats={allCats} />}
-      {tab === 'transactions' && <Transactions transactions={transactions} onAdd={addTransaction} onDelete={deleteTransaction} onTransfer={transferPockets} expenseCats={expenseCats} incomeCats={incomeCats} allCats={allCats} showToast={showToast} />}
-      {tab === 'analytics'    && <Analytics    transactions={transactions} budgets={budgets} setBudgets={setBudgets} viewMonth={viewMonth} setViewMonth={setViewMonth} expenseCats={expenseCats} showToast={showToast} />}
-      {tab === 'goals'        && <Goals        goals={goals} setGoals={setGoals} pockets={pockets} showToast={showToast} />}
-      {tab === 'settings'     && <Settings     pockets={pockets} setPockets={setPockets} expenseCats={expenseCats} incomeCats={incomeCats} setExpenseCats={setExpenseCats} setIncomeCats={setIncomeCats} transactions={transactions} onImportSheets={importFromSheets} showToast={showToast} />}
-
+      {tab === 'transactions' && <Transactions transactions={transactions} onAdd={addTransaction} onDelete={deleteTransaction} onEdit={editTransaction} onTransfer={transferPockets} expenseCats={expenseCats} incomeCats={incomeCats} allCats={allCats} showToast={showToast} />}
+      {tab === 'analytics'   && <Analytics    transactions={transactions} budgets={budgets} setBudgets={setBudgets} viewMonth={viewMonth} setViewMonth={setViewMonth} expenseCats={expenseCats} showToast={showToast} />}
+      {tab === 'goals'       && <Goals        goals={goals} setGoals={setGoals} pockets={pockets} showToast={showToast} />}
+      {tab === 'settings'    && <Settings     pockets={pockets} setPockets={setPockets} expenseCats={expenseCats} incomeCats={incomeCats} setExpenseCats={setExpenseCats} setIncomeCats={setIncomeCats} transactions={transactions} onImportSheets={importFromSheets} showToast={showToast} />}
       <nav style={S.bottomNav}>
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={S.navBtn(tab === t.key)}>
