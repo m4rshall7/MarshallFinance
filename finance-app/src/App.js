@@ -933,7 +933,7 @@ export default function App() {
   const addTransaction = useCallback(async (tx) => {
     const id = Date.now().toString();
     await setDoc(doc(db, 'transactions', id), { ...tx, id, createdAt: new Date().toISOString() });
-    if (tx.pocket === 'business') { {
+    if (tx.pocket === 'business') { 
       fetch('/api/sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
