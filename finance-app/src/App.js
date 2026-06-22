@@ -937,7 +937,7 @@ export default function App() {
       fetch('/api/sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(tx),
+        body: JSON.stringify({ ...tx, id }),
       }).catch(() => {});
     }
   }, []);
