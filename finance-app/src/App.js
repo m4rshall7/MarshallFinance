@@ -955,9 +955,17 @@ export default function App() {
   }, [transactions]);
 
   const editTransaction = useCallback(async (id, updates) => {
+    const tx = transactions.find(t => t.id === String(id));
     await updateDoc(doc(db, 'transactions', String(id)), updates);
+    if (tx && tx.pocket === 'business' && !tx.fromSheets) {
+      fetch('/api/sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update', id: String(id), plan: updates.plan || tx.plan }),
+      }).catch(() => {});
+    }
     showToast('Изменено ✓');
-  }, []);
+  }, [transactions]);
 
   const transferPockets = useCallback(async (fromKey, toKey, amount) => {
     const updated = { ...pockets, [fromKey]: (pockets[fromKey] || 0) - amount, [toKey]: (pockets[toKey] || 0) + amount };
