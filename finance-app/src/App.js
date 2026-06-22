@@ -113,9 +113,10 @@ function TxDetailModal({ tx, open, onClose, onDelete, onSave, expenseCats, incom
   const [date, setDate]       = useState('');
   const [note, setNote]       = useState('');
   const [plan, setPlan]       = useState('fact');
+  const [amount, setAmount]   = useState('');
 
   useEffect(() => {
-    if (tx) { setCat(tx.cat); setDate(tx.date); setNote(tx.note || ''); setPlan(tx.plan || 'fact'); setEditing(false); }
+    if (tx) { setCat(tx.cat); setDate(tx.date); setNote(tx.note || ''); setPlan(tx.plan || 'fact'); setAmount(tx.amount || ''); setEditing(false); }
   }, [tx]);
 
   if (!tx) return null;
@@ -124,7 +125,7 @@ function TxDetailModal({ tx, open, onClose, onDelete, onSave, expenseCats, incom
   const isPlan = tx.plan === 'plan';
 
   const handleSave = async () => {
-    await onSave(tx.id, { cat, date, note, plan });
+    await onSave(tx.id, { cat, date, note, plan, amount: parseFloat(amount) });
     onClose();
   };
 
@@ -184,7 +185,11 @@ function TxDetailModal({ tx, open, onClose, onDelete, onSave, expenseCats, incom
             <div style={S.label}>Дата</div>
             <input style={S.input} type="date" value={date} onChange={e => setDate(e.target.value)} />
           </div>
-          <div style={{ marginBottom: 12 }}>
+         <div style={{ marginBottom: 12 }}>
+  <div style={S.label}>Сумма (₽)</div>
+  <input style={S.input} type="number" value={amount} onChange={e => setAmount(e.target.value)} inputMode="numeric" />
+</div> 
+        <div style={{ marginBottom: 12 }}>
             <div style={S.label}>Комментарий</div>
             <input style={S.input} type="text" value={note} onChange={e => setNote(e.target.value)} />
           </div>
