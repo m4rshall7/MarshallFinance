@@ -933,7 +933,7 @@ export default function App() {
   const addTransaction = useCallback(async (tx) => {
     const id = Date.now().toString();
     await setDoc(doc(db, 'transactions', id), { ...tx, id, createdAt: new Date().toISOString() });
-    if (tx.pocket === 'business' && tx.plan !== 'plan') {
+    if (tx.pocket === 'business') { {
       fetch('/api/sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -943,8 +943,16 @@ export default function App() {
   }, []);
 
   const deleteTransaction = useCallback(async id => {
+    const tx = transactions.find(t => t.id === String(id));
+    if (tx && tx.pocket === 'business' && !tx.fromSheets) {
+      fetch('/api/sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', id: String(id) }),
+      }).catch(() => {});
+    }
     await deleteDoc(doc(db, 'transactions', String(id)));
-  }, []);
+  }, [transactions]);
 
   const editTransaction = useCallback(async (id, updates) => {
     await updateDoc(doc(db, 'transactions', String(id)), updates);
