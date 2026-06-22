@@ -6,7 +6,6 @@ import * as XLSX from 'xlsx';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const SPREADSHEET_ID = '1x2FUQZgAibFeJYgxKsbGVZUGlUKoKlyp6syFSO5vBw4';
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby0ecqSaaYnUN2kIa51NVeRhn72FVkCPL94bo_xmowMm-YbX8V6y8WwBLbtBNCwvnuU8g/exec';
 
 const POCKETS = [
   { key: 'personal', label: 'Личный банк',  color: '#3b82f6', icon: '🏦' },
@@ -835,12 +834,12 @@ export default function App() {
     return unsub;
   }, []);
 
-  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby0ecqSaaYnUN2kIa51NVeRhn72FVkCPL94bo_xmowMm-YbX8V6y8WwBLbtBNCwvnuU8g/exec';
+  const  = 'https://script.google.com/macros/s/AKfycby0ecqSaaYnUN2kIa51NVeRhn72FVkCPL94bo_xmowMm-YbX8V6y8WwBLbtBNCwvnuU8g/exec';
   const addTransaction = useCallback(async (tx) => {
     const id = Date.now().toString();
     await setDoc(doc(db, 'transactions', id), { ...tx, id, createdAt: new Date().toISOString() });
     if (tx.pocket === 'business') {
-      fetch(APPS_SCRIPT_URL, { method: 'POST', body: JSON.stringify(tx), mode: 'no-cors' }).catch(() => {});
+      fetch(, { method: 'POST', body: JSON.stringify(tx), mode: 'no-cors' }).catch(() => {});
     }
   }, []);
   
