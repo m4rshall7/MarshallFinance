@@ -834,12 +834,12 @@ export default function App() {
     return unsub;
   }, []);
 
-  const  = 'https://script.google.com/macros/s/AKfycby0ecqSaaYnUN2kIa51NVeRhn72FVkCPL94bo_xmowMm-YbX8V6y8WwBLbtBNCwvnuU8g/exec';
+  
   const addTransaction = useCallback(async (tx) => {
     const id = Date.now().toString();
     await setDoc(doc(db, 'transactions', id), { ...tx, id, createdAt: new Date().toISOString() });
     if (tx.pocket === 'business') {
-      fetch(, { method: 'POST', body: JSON.stringify(tx), mode: 'no-cors' }).catch(() => {});
+      fetch('/api/sheets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(tx) }).catch(() => {});
     }
   }, []);
   
